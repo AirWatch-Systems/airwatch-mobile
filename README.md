@@ -42,9 +42,32 @@ To learn more about developing your project with Expo, look at the following res
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
+
 ## Join the community
+
+
 
 Join our community of developers creating universal apps.
 
+
+
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Environment configuration (AirWatch)
+
+Configure the mobile app to talk to the backend by defining Expo public environment variables. Create a file named `.env` in the project root (same folder as `package.json`) with:
+
+```bash
+EXPO_PUBLIC_API_URL=https://localhost:5001
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_KEY
+EXPO_PUBLIC_REQUEST_TIMEOUT_MS=15000
+EXPO_PUBLIC_ENV=development
+```
+
+Notes:
+- EXPO_PUBLIC_API_URL should point to your running backend (Kestrel/IIS). Use HTTPS if available.
+- After editing `.env`, restart the Expo dev server: stop it and run `npx expo start` again.
+- On the first run, trust the dev HTTPS certificate: `dotnet dev-certs https --trust` on the backend machine.
+
