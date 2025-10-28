@@ -13,7 +13,7 @@ import {
 import { Link, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { useAuth } from "../src/hooks/useAuth";
+import { useAuthContext } from "../src/hooks/AuthContext";
 import { ErrorToast, LoadingOverlay } from "../src/components/common";
 
 export default function LoginScreen() {
@@ -23,7 +23,7 @@ export default function LoginScreen() {
     isAuthenticated,
     isAuthenticating,
     pendingSessionId,
-  } = useAuth();
+  } = useAuthContext();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +55,7 @@ export default function LoginScreen() {
   };
 
   if (isAuthenticated) {
-    return <Redirect href="/" />;
+    return <Redirect href="/home" />;
   }
 
   return (

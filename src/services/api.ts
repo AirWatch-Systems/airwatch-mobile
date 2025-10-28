@@ -42,6 +42,7 @@ export function onUnauthorized(cb: UnauthorizedCallback) {
  * Unsubscribe a previously registered unauthorized listener.
  */
 export function offUnauthorized(cb: UnauthorizedCallback) {
+  console.log("Unsubscribing unauthorized listener");
   unauthorizedListeners.delete(cb);
 }
 

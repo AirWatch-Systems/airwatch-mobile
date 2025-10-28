@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Redirect } from "expo-router";
 
 import {
   View,
@@ -17,19 +18,17 @@ import CrossPlatformMapView, {
   type Region,
 } from "../../src/components/Map/MapView";
 
+import { useAuthContext } from "../../src/hooks/AuthContext";
 import {
-  useAuth,
   useLocationPermission,
   useCurrentLocation,
-  usePollution,
   useFeedbacks,
   useSubmitFeedback,
   useMarkers,
   useSearchLocations,
-  ratingLabelToValue,
-  humanizeError,
-  type RatingLabel,
-} from "../../src/hooks/useAuth";
+} from "../../src/hooks/useLocation";
+import { usePollution } from "../../src/hooks/usePollution";
+import { ratingLabelToValue, humanizeError, type RatingLabel } from "../../src/hooks/types";
 
 import {
   ErrorToast,
@@ -39,24 +38,7 @@ import {
 } from "../../src/components/common";
 
 export default function Index() {
-  // Auth (RF01, RF02)
-  const {
-    register,
-    loginStart,
-    verify2fa,
-    logout,
-    isAuthenticated,
-    isAuthenticating,
-    pendingSessionId,
-    error: authError,
-  } = useAuth();
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [twoFaCode, setTwoFaCode] = useState("");
+  const { isAuthenticated, isLoading, checkAuth } = useAuthContext();
 
   // Location (RF03)
   const {
@@ -74,7 +56,7 @@ export default function Index() {
     refetch: refetchLocation,
   } = useCurrentLocation(hasPermission);
 
-  // Pollution (RF04, RF14)
+  // Pollution (RF04, RF14) - only if authenticated
   const {
     current,
     history,
@@ -85,26 +67,26 @@ export default function Index() {
     refetchCurrent,
     refetchHistory,
   } = usePollution({
-    lat: coords?.lat,
-    lon: coords?.lon,
+    lat: isAuthenticated ? coords?.lat : null,
+    lon: isAuthenticated ? coords?.lon : null,
     hours: 24,
     autoRefresh: true,
   });
 
-  // Feedbacks (RF05, RF06)
+  // Feedbacks (RF05, RF06) - only if authenticated
   const {
     items: feedbacks,
     isLoading: isLoadingFeedbacks,
     error: feedbacksError,
     refetch: refetchFeedbacks,
   } = useFeedbacks(
-    coords ? { lat: coords.lat, lon: coords.lon, radius: 5, hours: 12 } : null,
+    isAuthenticated && coords ? { lat: coords.lat, lon: coords.lon, radius: 5, hours: 12 } : null,
   );
   const { submit, isSubmitting, error: submitError } = useSubmitFeedback();
   const [ratingLabel, setRatingLabel] = useState<RatingLabel | null>(null);
   const [comment, setComment] = useState("");
 
-  // Map markers and search (RF07, RF08)
+  // Map markers and search (RF07, RF08) - only if authenticated
   const {
     markers,
     isLoading: isLoadingMarkers,
@@ -124,16 +106,18 @@ export default function Index() {
   );
   const onRegionChangeComplete = (region: Region) => {
     setMapRegion(region);
-    const lat1 = region.latitude - region.latitudeDelta / 2;
-    const lat2 = region.latitude + region.latitudeDelta / 2;
-    const lon1 = region.longitude - region.longitudeDelta / 2;
-    const lon2 = region.longitude + region.longitudeDelta / 2;
-    fetchMarkers({
-      lat1: Number(lat1.toFixed(6)),
-      lon1: Number(lon1.toFixed(6)),
-      lat2: Number(lat2.toFixed(6)),
-      lon2: Number(lon2.toFixed(6)),
-    });
+    if (isAuthenticated) {
+      const lat1 = region.latitude - region.latitudeDelta / 2;
+      const lat2 = region.latitude + region.latitudeDelta / 2;
+      const lon1 = region.longitude - region.longitudeDelta / 2;
+      const lon2 = region.longitude + region.longitudeDelta / 2;
+      fetchMarkers({
+        lat1: Number(lat1.toFixed(6)),
+        lon1: Number(lon1.toFixed(6)),
+        lat2: Number(lat2.toFixed(6)),
+        lon2: Number(lon2.toFixed(6)),
+      });
+    }
   };
   const getMarkerColor = (avgAqi: number) => {
     if (avgAqi <= 50) return "#16a34a";
@@ -152,8 +136,10 @@ export default function Index() {
   } = useSearchLocations();
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Panel state
+  const [showPanel, setShowPanel] = useState(false);
+
   const anyLoading =
-    isAuthenticating ||
     isRequestingLoc ||
     isLoadingLocation ||
     isLoadingCurrent ||
@@ -164,7 +150,6 @@ export default function Index() {
 
   const errorMessage = useMemo(() => {
     return (
-      humanizeError(authError) ||
       humanizeError(locationError) ||
       humanizeError(currentLocError) ||
       humanizeError(errorCurrent) ||
@@ -175,7 +160,6 @@ export default function Index() {
       humanizeError(searchError)
     );
   }, [
-    authError,
     locationError,
     currentLocError,
     errorCurrent,
@@ -186,23 +170,8 @@ export default function Index() {
     searchError,
   ]);
 
-  const onPressAuthPrimary = async () => {
-    if (isRegisterMode) {
-      await register({ name, email, password, confirmPassword });
-      setIsRegisterMode(false);
-    } else {
-      await loginStart({ email, password });
-    }
-  };
-
-  const onVerify2FA = async () => {
-    if (!pendingSessionId || !twoFaCode) return;
-    await verify2fa(pendingSessionId, twoFaCode);
-    setTwoFaCode("");
-  };
-
   const onSubmitFeedback = async () => {
-    if (!coords || !ratingLabel) return;
+    if (!isAuthenticated || !coords || !ratingLabel) return;
     await submit({
       lat: coords.lat,
       lon: coords.lon,
@@ -215,6 +184,11 @@ export default function Index() {
   };
 
   const canShowData = Boolean(coords);
+
+  // Redirect if not authenticated - must be after all hooks
+  if (!isAuthenticated && !isLoading) {
+    return <Redirect href="/login" />;
+  }
 
   return (
     <View style={styles.container}>
@@ -234,18 +208,6 @@ export default function Index() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>AirWatch</Text>
-          <View style={styles.headerRight}>
-            {isAuthenticated ? (
-              <Pressable onPress={logout} style={styles.ghostButton}>
-                <Ionicons name="log-out-outline" size={16} color="#fff" />
-                <Text style={styles.ghostButtonText}>Sair</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
         {/* Location & Permission (RF03) */}
         <View style={styles.card}>
           <View className="sectionHeader" style={styles.sectionHeader}>
@@ -282,103 +244,18 @@ export default function Index() {
           )}
         </View>
 
-        {/* Auth (RF01, RF02) */}
-        {!isAuthenticated ? (
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="person-circle-outline"
-                size={18}
-                color="#ffd33d"
-              />
-              <Text style={styles.sectionTitle}>
-                {isRegisterMode ? "Cadastro" : "Login"}
-              </Text>
-            </View>
-
-            {isRegisterMode && (
-              <>
-                <TextInput
-                  placeholder="Nome"
-                  placeholderTextColor="#9ca3af"
-                  value={name}
-                  onChangeText={setName}
-                  style={styles.input}
-                />
-              </>
-            )}
-
-            <TextInput
-              placeholder="E-mail"
-              placeholderTextColor="#9ca3af"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Senha"
-              placeholderTextColor="#9ca3af"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              style={styles.input}
-            />
-            {isRegisterMode && (
-              <TextInput
-                placeholder="Confirmar senha"
-                placeholderTextColor="#9ca3af"
-                secureTextEntry
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                style={styles.input}
-              />
-            )}
-
-            {!isRegisterMode && pendingSessionId ? (
-              <>
-                <View style={styles.divider} />
-                <Text style={styles.muted}>
-                  Digite o código 2FA recebido (modo demo: ver logs do servidor)
-                </Text>
-                <TextInput
-                  placeholder="Código 2FA"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="number-pad"
-                  value={twoFaCode}
-                  onChangeText={setTwoFaCode}
-                  style={styles.input}
-                />
-                <Pressable style={styles.button} onPress={onVerify2FA}>
-                  <Text style={styles.buttonText}>Verificar 2FA</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable style={styles.button} onPress={onPressAuthPrimary}>
-                <Text style={styles.buttonText}>
-                  {isRegisterMode ? "Cadastrar" : "Entrar"}
-                </Text>
-              </Pressable>
-            )}
-
-            <Pressable
-              style={styles.ghostButton}
-              onPress={() => setIsRegisterMode((v) => !v)}
-            >
-              <Ionicons name="swap-vertical" size={14} color="#fff" />
-              <Text style={styles.ghostButtonText}>
-                {isRegisterMode ? "Já tenho conta" : "Criar nova conta"}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-
         {/* Map and Markers (RF07, RF08) */}
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Ionicons name="map-outline" size={18} color="#ffd33d" />
             <Text style={styles.sectionTitle}>Mapa e Marcadores</Text>
+            <Pressable
+              style={styles.ghostButton}
+              onPress={() => setShowPanel(true)}
+            >
+              <Ionicons name="stats-chart" size={14} color="#fff" />
+              <Text style={styles.ghostButtonText}>Painel</Text>
+            </Pressable>
           </View>
 
           <View style={{ gap: 8 }}>
@@ -435,7 +312,7 @@ export default function Index() {
               <CrossPlatformMapView
                 style={{
                   width: "100%",
-                  height: 280,
+                  height: 400,
                   borderRadius: 12,
                   overflow: "hidden",
                 }}
@@ -453,7 +330,7 @@ export default function Index() {
             ) : (
               <View
                 style={{
-                  height: 280,
+                  height: 400,
                   backgroundColor: "#0b1220",
                   borderRadius: 12,
                   borderWidth: 1,
@@ -470,148 +347,165 @@ export default function Index() {
           </View>
         </View>
 
-        {/* Pollution Dashboard (RF04, RF14) */}
-        <View style={styles.card}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="speedometer-outline" size={18} color="#ffd33d" />
-            <Text style={styles.sectionTitle}>Qualidade do Ar (agora)</Text>
-            <Pressable style={styles.ghostButton} onPress={refetchCurrent}>
-              <Ionicons name="refresh" size={14} color="#fff" />
-              <Text style={styles.ghostButtonText}>Atualizar</Text>
-            </Pressable>
-          </View>
-          {isLoadingCurrent && !current ? (
-            <View style={styles.centerRow}>
-              <ActivityIndicator color="#ffd33d" />
-              <Text style={styles.muted}>Carregando...</Text>
-            </View>
-          ) : (
-            <PollutionCards current={canShowData ? (current ?? null) : null} />
-          )}
-        </View>
 
-        {/* Pollution History Chart (RF04) */}
-        <View style={styles.card}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="analytics-outline" size={18} color="#ffd33d" />
-            <Text style={styles.sectionTitle}>Últimas 24h</Text>
-            <Pressable style={styles.ghostButton} onPress={refetchHistory}>
-              <Ionicons name="refresh" size={14} color="#fff" />
-              <Text style={styles.ghostButtonText}>Atualizar</Text>
-            </Pressable>
-          </View>
-          {isLoadingHistory && !history ? (
-            <View style={styles.centerRow}>
-              <ActivityIndicator color="#ffd33d" />
-              <Text style={styles.muted}>Carregando...</Text>
-            </View>
-          ) : (
-            <PollutionLineChart
-              data={canShowData ? (history ?? []) : []}
-              height={240}
-              color="#60a5fa"
-              showLegend={Platform.OS === "web"}
-              showGrid
-            />
-          )}
-        </View>
-
-        {/* Feedbacks (RF05) */}
-        <View style={styles.card}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="chatbubbles-outline" size={18} color="#ffd33d" />
-            <Text style={styles.sectionTitle}>Feedbacks recentes</Text>
-            <Pressable style={styles.ghostButton} onPress={refetchFeedbacks}>
-              <Ionicons name="refresh" size={14} color="#fff" />
-              <Text style={styles.ghostButtonText}>Atualizar</Text>
-            </Pressable>
-          </View>
-          {isLoadingFeedbacks ? (
-            <View style={styles.centerRow}>
-              <ActivityIndicator color="#ffd33d" />
-              <Text style={styles.muted}>Carregando...</Text>
-            </View>
-          ) : feedbacks && feedbacks.length > 0 ? (
-            feedbacks.slice(0, 6).map((f) => (
-              <View key={f.id} style={styles.feedbackItem}>
-                <Ionicons
-                  name="person-circle"
-                  size={20}
-                  color="#9ca3af"
-                  style={{ marginRight: 8 }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.feedbackUser}>
-                    {f.user?.name || "Usuário"}
-                  </Text>
-                  <Text style={styles.feedbackComment}>
-                    {f.comment || "(sem comentário)"}
-                  </Text>
-                </View>
-                <View style={styles.ratingPill}>
-                  <Text style={styles.ratingText}>{f.rating}</Text>
-                </View>
+        {/* Panel Modal */}
+        {showPanel && (
+          <View style={styles.panelOverlay}>
+            <View style={styles.panel}>
+              <View style={styles.panelHeader}>
+                <Text style={styles.panelTitle}>Painel de Qualidade do Ar</Text>
+                <Pressable onPress={() => setShowPanel(false)}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </Pressable>
               </View>
-            ))
-          ) : (
-            <Text style={styles.muted}>Sem feedbacks na região.</Text>
-          )}
-        </View>
 
-        {/* Submit Feedback (RF06) */}
-        {isAuthenticated && canShowData ? (
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="create-outline" size={18} color="#ffd33d" />
-              <Text style={styles.sectionTitle}>Avaliar qualidade do ar</Text>
-            </View>
+              <ScrollView style={styles.panelContent} showsVerticalScrollIndicator={false}>
+                {/* Pollution Dashboard (RF04, RF14) */}
+                <View style={styles.card}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="speedometer-outline" size={18} color="#ffd33d" />
+                    <Text style={styles.sectionTitle}>Qualidade do Ar (agora)</Text>
+                    <Pressable style={styles.ghostButton} onPress={refetchCurrent}>
+                      <Ionicons name="refresh" size={14} color="#fff" />
+                      <Text style={styles.ghostButtonText}>Atualizar</Text>
+                    </Pressable>
+                  </View>
+                  {isLoadingCurrent && !current ? (
+                    <View style={styles.centerRow}>
+                      <ActivityIndicator color="#ffd33d" />
+                      <Text style={styles.muted}>Carregando...</Text>
+                    </View>
+                  ) : (
+                    <PollutionCards current={canShowData ? (current ?? null) : null} />
+                  )}
+                </View>
 
-            <View style={styles.ratingRow}>
-              {(
-                [
-                  "Boa",
-                  "Normal",
-                  "Ruim",
-                  "Muito Ruim",
-                  "Péssima",
-                ] as RatingLabel[]
-              ).map((label) => {
-                const active = ratingLabel === label;
-                return (
-                  <Pressable
-                    key={label}
-                    onPress={() => setRatingLabel(label)}
-                    style={[styles.pill, active && styles.pillActive]}
-                  >
-                    <Text
-                      style={[styles.pillText, active && styles.pillTextActive]}
+                {/* Pollution History Chart (RF04) */}
+                <View style={styles.card}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="analytics-outline" size={18} color="#ffd33d" />
+                    <Text style={styles.sectionTitle}>Últimas 24h</Text>
+                    <Pressable style={styles.ghostButton} onPress={refetchHistory}>
+                      <Ionicons name="refresh" size={14} color="#fff" />
+                      <Text style={styles.ghostButtonText}>Atualizar</Text>
+                    </Pressable>
+                  </View>
+                  {isLoadingHistory && !history ? (
+                    <View style={styles.centerRow}>
+                      <ActivityIndicator color="#ffd33d" />
+                      <Text style={styles.muted}>Carregando...</Text>
+                    </View>
+                  ) : (
+                    <PollutionLineChart
+                      data={canShowData ? (history ?? []) : []}
+                      height={240}
+                      color="#60a5fa"
+                      showLegend={Platform.OS === "web"}
+                      showGrid
+                    />
+                  )}
+                </View>
+
+                {/* Feedbacks (RF05) */}
+                <View style={styles.card}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="chatbubbles-outline" size={18} color="#ffd33d" />
+                    <Text style={styles.sectionTitle}>Feedbacks recentes</Text>
+                    <Pressable style={styles.ghostButton} onPress={refetchFeedbacks}>
+                      <Ionicons name="refresh" size={14} color="#fff" />
+                      <Text style={styles.ghostButtonText}>Atualizar</Text>
+                    </Pressable>
+                  </View>
+                  {isLoadingFeedbacks ? (
+                    <View style={styles.centerRow}>
+                      <ActivityIndicator color="#ffd33d" />
+                      <Text style={styles.muted}>Carregando...</Text>
+                    </View>
+                  ) : feedbacks && feedbacks.length > 0 ? (
+                    feedbacks.slice(0, 6).map((f) => (
+                      <View key={f.id} style={styles.feedbackItem}>
+                        <Ionicons
+                          name="person-circle"
+                          size={20}
+                          color="#9ca3af"
+                          style={{ marginRight: 8 }}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.feedbackUser}>
+                            {f.user?.name || "Usuário"}
+                          </Text>
+                          <Text style={styles.feedbackComment}>
+                            {f.comment || "(sem comentário)"}
+                          </Text>
+                        </View>
+                        <View style={styles.ratingPill}>
+                          <Text style={styles.ratingText}>{f.rating}</Text>
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.muted}>Sem feedbacks na região.</Text>
+                  )}
+                </View>
+
+                {/* Submit Feedback (RF06) */}
+                {canShowData && isAuthenticated ? (
+                  <View style={styles.card}>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons name="create-outline" size={18} color="#ffd33d" />
+                      <Text style={styles.sectionTitle}>Avaliar qualidade do ar</Text>
+                    </View>
+
+                    <View style={styles.ratingRow}>
+                      {(
+                        [
+                          "Boa",
+                          "Normal",
+                          "Ruim",
+                          "Muito Ruim",
+                          "Péssima",
+                        ] as RatingLabel[]
+                      ).map((label) => {
+                        const active = ratingLabel === label;
+                        return (
+                          <Pressable
+                            key={label}
+                            onPress={() => setRatingLabel(label)}
+                            style={[styles.pill, active && styles.pillActive]}
+                          >
+                            <Text
+                              style={[styles.pillText, active && styles.pillTextActive]}
+                            >
+                              {label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    <TextInput
+                      placeholder="Comentário (opcional)"
+                      placeholderTextColor="#9ca3af"
+                      value={comment}
+                      onChangeText={setComment}
+                      style={[styles.input, { minHeight: 44 }]}
+                      maxLength={500}
+                      multiline
+                    />
+
+                    <Pressable
+                      style={[styles.button, !ratingLabel && styles.buttonDisabled]}
+                      onPress={onSubmitFeedback}
+                      disabled={!ratingLabel || isSubmitting}
                     >
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Text style={styles.buttonText}>Enviar feedback</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </ScrollView>
             </View>
-
-            <TextInput
-              placeholder="Comentário (opcional)"
-              placeholderTextColor="#9ca3af"
-              value={comment}
-              onChangeText={setComment}
-              style={[styles.input, { minHeight: 44 }]}
-              maxLength={500}
-              multiline
-            />
-
-            <Pressable
-              style={[styles.button, !ratingLabel && styles.buttonDisabled]}
-              onPress={onSubmitFeedback}
-              disabled={!ratingLabel || isSubmitting}
-            >
-              <Text style={styles.buttonText}>Enviar feedback</Text>
-            </Pressable>
           </View>
-        ) : null}
+        )}
 
         {/* Footnote */}
         <Text style={styles.footnote}>
@@ -798,5 +692,41 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     marginTop: 8,
     fontSize: 12,
+  },
+  panelOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  panel: {
+    width: "90%",
+    maxHeight: "80%",
+    backgroundColor: "#25292e",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#374151",
+  },
+  panelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#374151",
+  },
+  panelTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  panelContent: {
+    padding: 16,
+    maxHeight: 500,
   },
 });

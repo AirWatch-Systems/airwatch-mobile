@@ -44,7 +44,7 @@ export default function RegisterScreen() {
   };
 
   if (isAuthenticated) {
-    return <Redirect href="/" />;
+    return <Redirect href="/home" />;
   }
 
   return (

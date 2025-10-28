@@ -21,6 +21,8 @@ export interface LoginRequest {
 export interface LoginResponse {
   requires2FA: boolean;
   sessionId: string;
+  token?: string; // Present when 2FA is not required
+  expiresIn?: number; // Present when token is provided
 }
 export interface Verify2FaRequest {
   sessionId: string;
