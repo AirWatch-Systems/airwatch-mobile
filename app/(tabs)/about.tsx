@@ -5,11 +5,35 @@ import {
   Linking,
   ScrollView,
   Pressable,
+  TouchableOpacity,
 } from "react-native";
+import { router } from "expo-router";
+import { useAuth } from "../../src/hooks/useAuth";
+import { showAlert } from "../../src/utils/alert";
 
 export default function AboutScreen() {
+  const { logout } = useAuth();
+  
   const openLink = (url: string) => {
     Linking.openURL(url).catch(() => {});
+  };
+
+  const handleLogout = () => {
+    showAlert(
+      "Logout",
+      "Deseja sair da sua conta?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sair",
+          style: "destructive",
+          onPress: async () => {
+            await logout();
+            router.replace("/login");
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -72,6 +96,10 @@ export default function AboutScreen() {
           Dica: configure EXPO_PUBLIC_API_URL no frontend para apontar para a
           URL da API.
         </Text>
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Sair da Conta</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -118,5 +146,17 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     fontSize: 12,
     marginTop: 8,
+  },
+  logoutButton: {
+    backgroundColor: "#dc2626",
+    borderRadius: 8,
+    padding: 16,
+    alignItems: "center",
+    marginTop: 24,
+  },
+  logoutButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

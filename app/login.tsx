@@ -1,271 +1,168 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
-  Pressable,
+  TouchableOpacity,
+  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-} from "react-native";
-import { Link, Redirect } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-
-import { useAuthContext } from "../src/hooks/AuthContext";
-import { ErrorToast, LoadingOverlay } from "../src/components/common";
+} from 'react-native';
+import { router } from 'expo-router';
+import { AuthService } from '../src/services/auth';
+import { useAuth } from '../src/hooks/useAuth';
+import { showAlert } from '../src/utils/alert';
 
 export default function LoginScreen() {
-  const {
-    loginStart,
-    verify2fa,
-    isAuthenticated,
-    isAuthenticating,
-    pendingSessionId,
-  } = useAuthContext();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [twoFaCode, setTwoFaCode] = useState("");
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/(tabs)/about');
+    }
+  }, [authLoading, isAuthenticated]);
 
-  const onPressLogin = async () => {
-    setErrorMessage(null);
-    const result = await loginStart({ email, password });
-    if (result && !result.requires2FA) {
-      setSuccessMessage("Autenticado!");
-    } else if (!result) {
-      setErrorMessage("Dados Inválidos!");
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      showAlert('Erro', 'Preencha todos os campos');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const authService = AuthService.getInstance();
+      const response = await authService.login(email.trim(), password);
+      
+      if (response.requires2Fa) {
+        router.push({
+          pathname: '/two-factor',
+          params: { sessionId: response.sessionId }
+        });
+      }
+    } catch (error: any) {
+      showAlert('Erro', error.message || 'Erro ao fazer login');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const onVerify2FA = async () => {
-    if (!pendingSessionId || !twoFaCode) return;
-    setErrorMessage(null);
-    const result = await verify2fa(pendingSessionId, twoFaCode);
-    // Sucesso: limpa código
-    if (result) {
-      setTwoFaCode("");
-      setSuccessMessage("Autenticado!");
-    } else {
-      setErrorMessage("Dados Inválidos!");
-    }
-  };
-
-  if (isAuthenticated) {
-    return <Redirect href="/home" />;
-  }
 
   return (
-    <View style={styles.container}>
-      <LoadingOverlay visible={isAuthenticating} message="Autenticando..." />
-      <ErrorToast
-        visible={Boolean(errorMessage)}
-        message={errorMessage || ""}
-        type="error"
-        onDismiss={() => setErrorMessage(null)}
-      />
-      <ErrorToast
-        visible={Boolean(successMessage)}
-        message={successMessage || ""}
-        type="success"
-        onDismiss={() => setSuccessMessage(null)}
-      />
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.content}>
+        <Text style={styles.title}>AirWatch</Text>
+        <Text style={styles.subtitle}>Faça login para continuar</Text>
 
-      <KeyboardAvoidingView
-        behavior={Platform.select({ ios: "padding", android: undefined })}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.header}>
-            <Ionicons name="leaf" size={28} color="#ffd33d" />
-            <Text style={styles.title}>AirWatch</Text>
-          </View>
-          <Text style={styles.subtitle}>
-            Monitore a qualidade do ar perto de você.
-          </Text>
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#9ca3af"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+          />
 
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="person-circle-outline"
-                size={18}
-                color="#ffd33d"
-              />
-              <Text style={styles.sectionTitle}>Login</Text>
-            </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Senha"
+            placeholderTextColor="#9ca3af"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            editable={!loading}
+          />
 
-            <TextInput
-              placeholder="E-mail"
-              placeholderTextColor="#9ca3af"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-            />
-
-            <TextInput
-              placeholder="Senha"
-              placeholderTextColor="#9ca3af"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              style={styles.input}
-            />
-
-            {pendingSessionId ? (
-              <>
-                <View style={styles.divider} />
-                <Text style={styles.muted}>
-                  Digite o código 2FA recebido (modo demo: ver logs do servidor)
-                </Text>
-                <TextInput
-                  placeholder="Código 2FA"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="number-pad"
-                  value={twoFaCode}
-                  onChangeText={setTwoFaCode}
-                  style={styles.input}
-                />
-                <Pressable style={styles.button} onPress={onVerify2FA}>
-                  <Text style={styles.buttonText}>Verificar 2FA</Text>
-                </Pressable>
-              </>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#000" />
             ) : (
-              <Pressable style={styles.button} onPress={onPressLogin}>
-                <Text style={styles.buttonText}>Entrar</Text>
-              </Pressable>
+              <Text style={styles.buttonText}>Entrar</Text>
             )}
+          </TouchableOpacity>
 
-            <Link href="/register" asChild>
-              <Pressable style={styles.ghostButton}>
-                <Ionicons name="swap-vertical" size={14} color="#fff" />
-                <Text style={styles.ghostButtonText}>Criar nova conta</Text>
-              </Pressable>
-            </Link>
-
-            {isAuthenticating && (
-              <View style={styles.centerRow}>
-                <ActivityIndicator color="#ffd33d" />
-                <Text style={styles.muted}>Processando...</Text>
-              </View>
-            )}
-          </View>
-
-          <Text style={styles.hint}>
-            Após autenticar, você será redirecionado para as abas com o mapa,
-            localização atual e painel da qualidade do ar.
-          </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => router.push('/register')}
+            disabled={loading}
+          >
+            <Text style={styles.linkText}>Não tem uma conta? Cadastre-se</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#25292e",
+    backgroundColor: '#25292e',
   },
   content: {
-    padding: 16,
-    paddingTop: 48,
-    gap: 12,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
   },
   title: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
-    color: "#cbd5e1",
-    marginBottom: 6,
-  },
-  card: {
-    backgroundColor: "#111827",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#374151",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    color: "#e5e7eb",
     fontSize: 16,
-    fontWeight: "700",
-    flex: 1,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginBottom: 48,
+  },
+  form: {
+    gap: 16,
   },
   input: {
-    backgroundColor: "#0b1220",
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    color: '#fff',
     borderWidth: 1,
-    borderColor: "#1f2937",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: "#e5e7eb",
-    marginBottom: 8,
+    borderColor: '#4b5563',
   },
   button: {
-    backgroundColor: "#ffd33d",
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#ffd33d',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
-    color: "#111827",
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
   },
-  ghostButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#374151",
-    marginTop: 8,
+  linkButton: {
+    padding: 16,
+    alignItems: 'center',
   },
-  ghostButtonText: {
-    color: "#fff",
-    fontSize: 12,
-  },
-  muted: {
-    color: "#9ca3af",
-  },
-  centerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#1f2937",
-    marginVertical: 10,
-  },
-  hint: {
-    textAlign: "center",
-    color: "#9ca3af",
-    fontSize: 12,
+  linkText: {
+    fontSize: 16,
+    color: '#93c5fd',
   },
 });

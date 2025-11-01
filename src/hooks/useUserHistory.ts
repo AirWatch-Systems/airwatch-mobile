@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, get, toApiError } from "../services/api";
-import type { UserHistoryResponse } from "./types";
+import type { UserHistoryResponse } from "../types";
 
 /**
  * useUserHistory

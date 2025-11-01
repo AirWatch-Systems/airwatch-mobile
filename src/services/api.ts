@@ -63,7 +63,11 @@ export const api: AxiosInstance = axios.create({
 /**
  * Request interceptor: attaches Authorization header if a JWT is configured.
  */
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+  // Ensure token is valid before making request
+  const { ensureValidToken } = await import('./tokenRefresh');
+  await ensureValidToken();
+  
   if (currentToken) {
     config.headers = config.headers ?? {};
     // Don't overwrite if explicitly set on a single call
@@ -79,18 +83,24 @@ api.interceptors.request.use((config) => {
  */
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     const normalized = toApiError(error);
 
     if (normalized.status === 401 || normalized.status === 403) {
-      // Notify listeners so UI can react (e.g., force logout)
-      unauthorizedListeners.forEach((cb) => {
-        try {
-          cb(normalized);
-        } catch (e) {
-          if (__DEV__) console.warn("[api] Unauthorized listener threw:", e);
-        }
-      });
+      // Try to refresh token automatically
+      const { AuthService } = await import('./auth');
+      const authService = AuthService.getInstance();
+      
+      if (authService.isTokenExpired()) {
+        // Token expired, notify listeners for logout
+        unauthorizedListeners.forEach((cb) => {
+          try {
+            cb(normalized);
+          } catch (e) {
+            if (__DEV__) console.warn("[api] Unauthorized listener threw:", e);
+          }
+        });
+      }
     }
 
     return Promise.reject(normalized);

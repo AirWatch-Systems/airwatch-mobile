@@ -1,23 +1,24 @@
-import { Redirect } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
-
-import { useAuthContext } from "../src/hooks/AuthContext";
+import { useEffect } from "react";
+import { router } from "expo-router";
+import { useAuth } from "../src/hooks/useAuth";
 
 export default function IndexScreen() {
-  const { isAuthenticated, isLoading } = useAuthContext();
+  const { isAuthenticated, loading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#ffd33d" />
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (!loading) {
+      if (isAuthenticated) {
+        router.replace("/(tabs)/about");
+      } else {
+        router.replace("/login");
+      }
+    }
+  }, [loading, isAuthenticated]);
 
-  if (isAuthenticated) {
-    return <Redirect href="/home" />;
-  }
-
-  // Redirecionar para login por padrão
-  return <Redirect href="/login" />;
+  return (
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#25292e" }}>
+      <ActivityIndicator size="large" color="#ffd33d" />
+    </View>
+  );
 }

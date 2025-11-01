@@ -1,253 +1,204 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
-  Pressable,
+  TouchableOpacity,
+  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-} from "react-native";
-import { Link, Redirect } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-
-import { useAuth } from "../src/hooks/useAuth";
-import { ErrorToast, LoadingOverlay } from "../src/components/common";
+} from 'react-native';
+import { router } from 'expo-router';
+import { post } from '../src/services/api';
+import { useAuth } from '../src/hooks/useAuth';
+import { showAlert } from '../src/utils/alert';
+import { RegisterRequest, RegisterResponse } from '../src/types';
 
 export default function RegisterScreen() {
-  const {
-    register,
-    isAuthenticated,
-    isAuthenticating,
-  } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace('/(tabs)/about');
+    }
+  }, [authLoading, isAuthenticated]);
 
-  const onPressRegister = async () => {
-    setErrorMessage(null);
-    const result = await register({ name, email, password, confirmPassword });
-    // Sucesso: limpa campos
-    if (result) {
-      setPassword("");
-      setConfirmPassword("");
-      setSuccessMessage("Usuário Cadastrado com Sucesso!");
-    } else {
-      setErrorMessage("Já existe um usuário cadastrado com esse email!");
+  const handleRegister = async () => {
+    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+      showAlert('Erro', 'Preencha todos os campos');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showAlert('Erro', 'As senhas não coincidem');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await post<RegisterResponse, RegisterRequest>('/api/auth/register', {
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        confirmPassword
+      });
+      
+      showAlert('Sucesso', 'Conta criada com sucesso! Faça login para continuar.', [
+        { text: 'OK', onPress: () => router.replace('/login') }
+      ]);
+    } catch (error: any) {
+      showAlert('Erro', error.message || 'Erro ao criar conta');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (isAuthenticated) {
-    return <Redirect href="/home" />;
-  }
-
   return (
-    <View style={styles.container}>
-      <LoadingOverlay visible={isAuthenticating} message="Autenticando..." />
-      <ErrorToast
-        visible={Boolean(errorMessage)}
-        message={errorMessage || ""}
-        type="error"
-        onDismiss={() => setErrorMessage(null)}
-      />
-      <ErrorToast
-        visible={Boolean(successMessage)}
-        message={successMessage || ""}
-        type="success"
-        onDismiss={() => setSuccessMessage(null)}
-      />
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Criar Conta</Text>
+          <Text style={styles.subtitle}>Preencha os dados para se cadastrar</Text>
 
-      <KeyboardAvoidingView
-        behavior={Platform.select({ ios: "padding", android: undefined })}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.header}>
-            <Ionicons name="leaf" size={28} color="#ffd33d" />
-            <Text style={styles.title}>AirWatch</Text>
-          </View>
-          <Text style={styles.subtitle}>
-            Monitore a qualidade do ar perto de você.
-          </Text>
-
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="person-circle-outline"
-                size={18}
-                color="#ffd33d"
-              />
-              <Text style={styles.sectionTitle}>Cadastro</Text>
-            </View>
-
+          <View style={styles.form}>
             <TextInput
-              placeholder="Nome"
+              style={styles.input}
+              placeholder="Nome completo"
               placeholderTextColor="#9ca3af"
               value={name}
               onChangeText={setName}
-              style={styles.input}
               autoCapitalize="words"
+              editable={!loading}
             />
 
             <TextInput
-              placeholder="E-mail"
+              style={styles.input}
+              placeholder="Email"
               placeholderTextColor="#9ca3af"
-              autoCapitalize="none"
-              keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
-              style={styles.input}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
             />
 
             <TextInput
+              style={styles.input}
               placeholder="Senha"
               placeholderTextColor="#9ca3af"
-              secureTextEntry
               value={password}
               onChangeText={setPassword}
-              style={styles.input}
+              secureTextEntry
+              editable={!loading}
             />
 
             <TextInput
+              style={styles.input}
               placeholder="Confirmar senha"
               placeholderTextColor="#9ca3af"
-              secureTextEntry
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              style={styles.input}
+              secureTextEntry
+              editable={!loading}
             />
 
-            <Pressable style={styles.button} onPress={onPressRegister}>
-              <Text style={styles.buttonText}>Cadastrar</Text>
-            </Pressable>
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text style={styles.buttonText}>Criar Conta</Text>
+              )}
+            </TouchableOpacity>
 
-            <Link href="/login" asChild>
-              <Pressable style={styles.ghostButton}>
-                <Ionicons name="swap-vertical" size={14} color="#fff" />
-                <Text style={styles.ghostButtonText}>Já tenho conta</Text>
-              </Pressable>
-            </Link>
-
-            {isAuthenticating && (
-              <View style={styles.centerRow}>
-                <ActivityIndicator color="#ffd33d" />
-                <Text style={styles.muted}>Processando...</Text>
-              </View>
-            )}
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => router.replace('/login')}
+              disabled={loading}
+            >
+              <Text style={styles.linkText}>Já tem uma conta? Faça login</Text>
+            </TouchableOpacity>
           </View>
-
-          <Text style={styles.hint}>
-            Após autenticar, você será redirecionado para as abas com o mapa,
-            localização atual e painel da qualidade do ar.
-          </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#25292e",
+    backgroundColor: '#25292e',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
-    padding: 16,
-    paddingTop: 48,
-    gap: 12,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 48,
   },
   title: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
-    color: "#cbd5e1",
-    marginBottom: 6,
-  },
-  card: {
-    backgroundColor: "#111827",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#374151",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    color: "#e5e7eb",
     fontSize: 16,
-    fontWeight: "700",
-    flex: 1,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginBottom: 48,
+  },
+  form: {
+    gap: 16,
   },
   input: {
-    backgroundColor: "#0b1220",
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    color: '#fff',
     borderWidth: 1,
-    borderColor: "#1f2937",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: "#e5e7eb",
-    marginBottom: 8,
+    borderColor: '#4b5563',
   },
   button: {
-    backgroundColor: "#ffd33d",
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#ffd33d',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
-    color: "#111827",
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
   },
-  ghostButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#374151",
-    marginTop: 8,
+  linkButton: {
+    padding: 16,
+    alignItems: 'center',
   },
-  ghostButtonText: {
-    color: "#fff",
-    fontSize: 12,
-  },
-  muted: {
-    color: "#9ca3af",
-  },
-  centerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-  hint: {
-    textAlign: "center",
-    color: "#9ca3af",
-    fontSize: 12,
+  linkText: {
+    fontSize: 16,
+    color: '#93c5fd',
   },
 });

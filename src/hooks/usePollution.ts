@@ -4,7 +4,7 @@ import type {
   PollutionCurrentResponse,
   PollutionHistoryPointDto,
   PollutionHistoryResponse,
-} from "./types";
+} from "../types";
 
 /**
  * usePollution

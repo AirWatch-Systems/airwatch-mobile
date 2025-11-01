@@ -23,7 +23,9 @@ export default function RootLayout() {
             headerShown: false,
           }}
         />
-
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="two-factor" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" options={{}} />
       </Stack>
     </AuthProvider>

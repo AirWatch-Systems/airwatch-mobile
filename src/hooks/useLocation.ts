@@ -11,7 +11,7 @@ import type {
   LocationSearchResponse,
   RegionMarkerDto,
   MarkersResponse,
-} from "./types";
+} from "../types";
 
 /**
  * useLocationPermission
