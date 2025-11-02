@@ -9,18 +9,44 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { AuthService } from '../src/services/auth';
-import { showAlert } from '../src/utils/alert';
+import { SessionManager, TempSession } from '../src/services/sessionManager';
+import { showErrorAlert, showSuccessAlert } from '../src/utils/alert';
 
 export default function TwoFactorScreen() {
-  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [canResend, setCanResend] = useState(false);
+  const [session, setSession] = useState<TempSession | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   useEffect(() => {
+    // Verificar sessão temporária
+    const checkSession = async () => {
+      const sessionManager = SessionManager.getInstance();
+      const tempSession = await sessionManager.getTempSession();
+      
+      if (!tempSession) {
+        showErrorAlert('Sessão expirada. Faça login novamente.');
+        router.replace('/login');
+        return;
+      }
+      
+      setSession(tempSession);
+      // Calcular tempo restante baseado na expiração da sessão
+      const remaining = Math.max(0, Math.floor((tempSession.expiresAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      setSessionLoading(false);
+    };
+    
+    checkSession();
+  }, []);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+    
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -32,29 +58,24 @@ export default function TwoFactorScreen() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [sessionLoading, setCanResend]);
 
   useEffect(() => {
     if (timeLeft === 0) {
-      showAlert(
-        'Código Expirado',
-        'O código de verificação expirou. Deseja receber um novo código?',
-        [
-          { text: 'Cancelar', style: 'cancel', onPress: () => router.replace('/login') },
-          { text: 'Reenviar', onPress: handleResendCode }
-        ]
+      showErrorAlert(
+        'O código de verificação expirou. Clique em "Reenviar Código" para receber um novo.'
       );
     }
   }, [timeLeft]);
 
   const handleVerify = async () => {
     if (!code.trim()) {
-      showAlert('Erro', 'Digite o código de verificação');
+      showErrorAlert('Digite o código de verificação');
       return;
     }
 
-    if (!sessionId) {
-      showAlert('Erro', 'Sessão inválida');
+    if (!session) {
+      showErrorAlert('Sessão inválida');
       router.replace('/login');
       return;
     }
@@ -62,18 +83,23 @@ export default function TwoFactorScreen() {
     setLoading(true);
     try {
       const authService = AuthService.getInstance();
-      await authService.verify2FA(sessionId, code.trim());
+      await authService.verify2FA(session.sessionId, code.trim());
       
+      // Limpar sessão temporária após sucesso
+      const sessionManager = SessionManager.getInstance();
+      await sessionManager.clearTempSession();
+      
+      showSuccessAlert('Autenticação realizada com sucesso!');
       router.replace('/(tabs)/about');
     } catch (error: any) {
-      showAlert('Erro', error.message || 'Código inválido');
+      showErrorAlert(error.message || 'Código de verificação inválido');
     } finally {
       setLoading(false);
     }
   };
 
   const handleResendCode = async () => {
-    if (!sessionId) return;
+    if (!session) return;
     
     try {
       // Reset timer and state
@@ -83,15 +109,28 @@ export default function TwoFactorScreen() {
       
       // In a real app, you would call an API to resend the code
       // For now, we'll just show a message
-      showAlert('Código Reenviado', 'Um novo código foi enviado. Verifique os logs da API.');
+      showSuccessAlert('Um novo código foi enviado. Verifique os logs da API.');
     } catch {
-      showAlert('Erro', 'Não foi possível reenviar o código');
+      showErrorAlert('Não foi possível reenviar o código');
     }
   };
 
   const handleBack = () => {
     router.back();
   };
+
+  if (sessionLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#ffd33d" />
+        <Text style={{ color: '#fff', marginTop: 16 }}>Carregando...</Text>
+      </View>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -101,7 +140,7 @@ export default function TwoFactorScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>Verificação em Duas Etapas</Text>
         <Text style={styles.subtitle}>
-          Digite o código de 6 dígitos que foi enviado para você
+          Digite o código de 6 dígitos enviado para {session?.email || 'você'}
         </Text>
         
         {timeLeft > 0 && (

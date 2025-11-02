@@ -42,7 +42,6 @@ export function onUnauthorized(cb: UnauthorizedCallback) {
  * Unsubscribe a previously registered unauthorized listener.
  */
 export function offUnauthorized(cb: UnauthorizedCallback) {
-  console.log("Unsubscribing unauthorized listener");
   unauthorizedListeners.delete(cb);
 }
 
@@ -67,7 +66,7 @@ api.interceptors.request.use(async (config) => {
   // Ensure token is valid before making request
   const { ensureValidToken } = await import('./tokenRefresh');
   await ensureValidToken();
-  
+
   if (currentToken) {
     config.headers = config.headers ?? {};
     // Don't overwrite if explicitly set on a single call
@@ -90,7 +89,7 @@ api.interceptors.response.use(
       // Try to refresh token automatically
       const { AuthService } = await import('./auth');
       const authService = AuthService.getInstance();
-      
+
       if (authService.isTokenExpired()) {
         // Token expired, notify listeners for logout
         unauthorizedListeners.forEach((cb) => {
@@ -137,13 +136,7 @@ export function toApiError(err: unknown): ApiError {
     // Network error (no response)
     const isNetworkError = !ae.response;
 
-    const message =
-      serverMessage ||
-      (timedOut
-        ? "Tempo de requisição esgotado."
-        : isNetworkError
-          ? "Verifique sua conexão com a internet."
-          : defaultMessageForStatus(status));
+    const message = getContextualErrorMessage(url, status, serverMessage, timedOut, isNetworkError);
 
     const apiError: ApiError = new Error(message);
     apiError.status = status;
@@ -159,6 +152,51 @@ export function toApiError(err: unknown): ApiError {
   const fallback = new Error("Ocorreu um erro inesperado.") as ApiError;
   fallback.code = "UNEXPECTED";
   return fallback;
+}
+
+/**
+ * Get contextual error message based on endpoint and status
+ */
+function getContextualErrorMessage(
+  url: string,
+  status?: number,
+  serverMessage?: string,
+  timedOut?: boolean,
+  isNetworkError?: boolean
+): string {
+  if (serverMessage) return serverMessage;
+
+  if (timedOut) return "Tempo de requisição esgotado.";
+  if (isNetworkError) return "Verifique sua conexão com a internet.";
+
+  // Mensagens específicas por endpoint
+  if (url.includes('/auth/login')) {
+    switch (status) {
+      case 401:
+      case 403:
+        return "Email ou senha inválidos.";
+      case 422:
+        return "Email ou senha inválidos.";
+      default:
+        return defaultMessageForStatus(status);
+    }
+  }
+
+  if (url.includes('/auth/verify-2fa')) {
+    switch (status) {
+      case 401:
+      case 403:
+        return "Código de verificação inválido.";
+      case 422:
+        return "Código de verificação inválido.";
+      case 410:
+        return "Código de verificação expirado.";
+      default:
+        return defaultMessageForStatus(status);
+    }
+  }
+
+  return defaultMessageForStatus(status);
 }
 
 /**
@@ -252,6 +290,6 @@ export async function del<TResponse = unknown>(
 /**
  * Type guard for ApiError.
  */
-export function isApiError(e: unknown): e is ApiError {
+export function isApiError(e: unknown): e is ApiError {  
   return e instanceof Error && "message" in e;
 }

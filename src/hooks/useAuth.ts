@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AuthService } from '../services/auth';
 import { AuthState } from '../types';
 import { onUnauthorized } from '../services/api';
@@ -11,54 +11,69 @@ export function useAuth() {
   });
   const [loading, setLoading] = useState(true);
 
-  const authService = AuthService.getInstance();
+  const authService = useMemo(() => AuthService.getInstance(), []);
 
-  useEffect(() => {
-    initializeAuth();
-    
-    // Listen for unauthorized responses to auto-logout
-    const unsubscribe = onUnauthorized(() => {
-      logout();
-    });
-
-    return unsubscribe;
-  }, []);
-
-  const initializeAuth = async () => {
+  const initializeAuth = useCallback(async () => {
     try {
       const isAuthenticated = await authService.loadStoredAuth();
       if (isAuthenticated) {
         setAuthState(authService.getAuthState());
+      } else {
+        setAuthState({ isAuthenticated: false, token: null, expiresAt: null });
       }
-    } catch (error) {
-      console.error('Error initializing auth:', error);
+    } catch {
+      setAuthState({ isAuthenticated: false, token: null, expiresAt: null });
     } finally {
       setLoading(false);
     }
-  };
+  }, [authService]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await authService.logout();
       const newState = authService.getAuthState();
       setAuthState(newState);
-      // Force immediate update
       return newState;
-    } catch (error) {
-      console.error('Error during logout:', error);
-      throw error;
+    } catch {
+      const fallbackState = { isAuthenticated: false, token: null, expiresAt: null };
+      setAuthState(fallbackState);
+      return fallbackState;
     }
-  };
+  }, [authService]);
 
-  const refreshAuthState = () => {
-    setAuthState(authService.getAuthState());
-  };
+  const refreshAuthState = useCallback(() => {
+    try {
+      setAuthState(authService.getAuthState());
+    } catch {
+      setAuthState({ isAuthenticated: false, token: null, expiresAt: null });
+    }
+  }, [authService]);
+
+  const isTokenExpired = useMemo(() => {
+    try {
+      return authService.isTokenExpired();
+    } catch {
+      return true;
+    }
+  }, [authService]);
+
+  useEffect(() => {
+    initializeAuth();
+
+    const unsubscribe = onUnauthorized(() => {
+      logout().catch();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [initializeAuth, logout]);
 
   return {
     ...authState,
     loading,
     logout,
     refreshAuthState,
-    isTokenExpired: authService.isTokenExpired()
+    isTokenExpired
   };
 }

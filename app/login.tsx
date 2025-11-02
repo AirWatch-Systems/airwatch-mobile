@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { AuthService } from '../src/services/auth';
+import { SessionManager } from '../src/services/sessionManager';
 import { useAuth } from '../src/hooks/useAuth';
-import { showAlert } from '../src/utils/alert';
+import { showErrorAlert } from '../src/utils/alert';
 
 export default function LoginScreen() {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -28,23 +29,23 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      showAlert('Erro', 'Preencha todos os campos');
+      showErrorAlert('Preencha todos os campos');
       return;
     }
 
     setLoading(true);
     try {
       const authService = AuthService.getInstance();
+      const sessionManager = SessionManager.getInstance();
       const response = await authService.login(email.trim(), password);
       
       if (response.requires2Fa) {
-        router.push({
-          pathname: '/two-factor',
-          params: { sessionId: response.sessionId }
-        });
+        // Armazenar sessão temporária de forma segura
+        await sessionManager.storeTempSession(response.sessionId, email.trim());
+        router.push('/two-factor');
       }
     } catch (error: any) {
-      showAlert('Erro', error.message || 'Erro ao fazer login');
+      showErrorAlert(error.message || 'Erro ao fazer login');
     } finally {
       setLoading(false);
     }
