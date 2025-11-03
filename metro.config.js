@@ -8,4 +8,7 @@ config.resolver.blockList = [
   ...(config.resolver.blockList || []),
 ];
 
+// Platform-specific extensions for web compatibility
+config.resolver.platforms = ['native', 'web', 'ios', 'android'];
+
 module.exports = config;

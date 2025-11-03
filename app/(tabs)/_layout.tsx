@@ -7,7 +7,7 @@ export default function TabLayout() {
     <AuthGuard>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: "#ffd33d",
+          tabBarActiveTintColor: "#007AFF",
           headerStyle: {
             backgroundColor: "#25292e",
           },
@@ -18,6 +18,19 @@ export default function TabLayout() {
           },
         }}
       >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Home",
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                color={color}
+                size={24}
+              />
+            ),
+          }}
+        />
         <Tabs.Screen
           name="about"
           options={{
