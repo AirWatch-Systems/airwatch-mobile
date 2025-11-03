@@ -13,14 +13,21 @@ export interface FeedbackListRequest {
 
 export interface FeedbackItemDto {
   id: string;
-  user: UserMiniDto;
+  user?: UserMiniDto;
+  userId?: string;
+  latitude?: number;
+  longitude?: number;
   rating: number;
   comment?: string | null;
   createdAt: string;
 }
 
 export interface FeedbackListResponse {
-  feedbacks: FeedbackItemDto[];
+  feedbacks?: FeedbackItemDto[];
+  items?: FeedbackItemDto[];
+  total?: number;
+  skip?: number;
+  take?: number;
 }
 
 export interface FeedbackCreateRequest {
