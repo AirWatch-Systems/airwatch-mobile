@@ -4,7 +4,8 @@ import { post, setAuthToken } from './api';
 import { LoginRequest, LoginResponse, Verify2FaRequest, Verify2FaResponse, AuthState } from '../types';
 
 const TOKEN_KEY = 'auth_token';
-const EXPIRES_KEY = 'auth_expires';
+const LAST_ROUTE_KEY = 'last_route';
+const FIRST_LOGIN_KEY = 'first_login';
 
 // Storage abstraction for web/mobile
 const storage = {
@@ -52,6 +53,14 @@ export class AuthService {
       email,
       password
     });
+    
+    // Se não requer 2FA, salvar token e marcar como primeiro login
+    if (!response.requires2Fa && response.token) {
+      await this.saveToken(response.token);
+      this.updateAuthState(response.token);
+      await this.markFirstLogin();
+    }
+    
     return response;
   }
 
@@ -61,22 +70,26 @@ export class AuthService {
       token
     });
 
-    const expiresAt = Date.now() + (response.expiresIn * 1000);
-    
-    await this.saveToken(response.token, expiresAt);
-    this.updateAuthState(response.token, expiresAt);
+    await this.saveToken(response.token);
+    this.updateAuthState(response.token);
+    await this.markFirstLogin();
   }
 
-  private async saveToken(token: string, expiresAt: number): Promise<void> {
+  async resend2FACode(sessionId: string): Promise<void> {
+    await post('/api/auth/resend-2fa', { sessionId });
+  }
+
+  private async saveToken(token: string): Promise<void> {
     await storage.setItem(TOKEN_KEY, token);
-    await storage.setItem(EXPIRES_KEY, expiresAt.toString());
   }
 
-  private updateAuthState(token: string, expiresAt: number): void {
+
+
+  private updateAuthState(token: string): void {
     this.authState = {
       isAuthenticated: true,
       token,
-      expiresAt
+      expiresAt: null
     };
     setAuthToken(token);
   }
@@ -84,20 +97,12 @@ export class AuthService {
   async loadStoredAuth(): Promise<boolean> {
     try {
       const token = await storage.getItem(TOKEN_KEY);
-      const expiresAtStr = await storage.getItem(EXPIRES_KEY);
       
-      if (!token || !expiresAtStr) {
+      if (!token) {
         return false;
       }
 
-      const expiresAt = parseInt(expiresAtStr, 10);
-      
-      if (Date.now() >= expiresAt) {
-        await this.logout();
-        return false;
-      }
-
-      this.updateAuthState(token, expiresAt);
+      this.updateAuthState(token);
       return true;
     } catch {
       return false;
@@ -107,9 +112,8 @@ export class AuthService {
   async logout(): Promise<void> {
     try {
       await storage.removeItem(TOKEN_KEY);
-      await storage.removeItem(EXPIRES_KEY);
     } catch (error) {
-      console.error('Error removing auth tokens:', error);
+      console.error('Error removing auth token:', error);
     }
     
     this.authState = {
@@ -124,8 +128,28 @@ export class AuthService {
     return { ...this.authState };
   }
 
-  isTokenExpired(): boolean {
-    if (!this.authState.expiresAt) return true;
-    return Date.now() >= this.authState.expiresAt;
+  async saveLastRoute(route: string): Promise<void> {
+    await storage.setItem(LAST_ROUTE_KEY, route);
+  }
+
+  async getLastRoute(): Promise<string | null> {
+    return storage.getItem(LAST_ROUTE_KEY);
+  }
+
+  async clearLastRoute(): Promise<void> {
+    await storage.removeItem(LAST_ROUTE_KEY);
+  }
+
+  async markFirstLogin(): Promise<void> {
+    await storage.setItem(FIRST_LOGIN_KEY, 'true');
+  }
+
+  async isFirstLogin(): Promise<boolean> {
+    const value = await storage.getItem(FIRST_LOGIN_KEY);
+    return value === 'true';
+  }
+
+  async clearFirstLogin(): Promise<void> {
+    await storage.removeItem(FIRST_LOGIN_KEY);
   }
 }

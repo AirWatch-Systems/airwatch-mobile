@@ -63,10 +63,6 @@ export const api: AxiosInstance = axios.create({
  * Request interceptor: attaches Authorization header if a JWT is configured.
  */
 api.interceptors.request.use(async (config) => {
-  // Ensure token is valid before making request
-  const { ensureValidToken } = await import('./tokenRefresh');
-  await ensureValidToken();
-
   if (currentToken) {
     config.headers = config.headers ?? {};
     // Don't overwrite if explicitly set on a single call
@@ -85,21 +81,18 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const normalized = toApiError(error);
 
-    if (normalized.status === 401 || normalized.status === 403) {
-      // Try to refresh token automatically
-      const { AuthService } = await import('./auth');
-      const authService = AuthService.getInstance();
-
-      if (authService.isTokenExpired()) {
-        // Token expired, notify listeners for logout
-        unauthorizedListeners.forEach((cb) => {
-          try {
-            cb(normalized);
-          } catch (e) {
-            if (__DEV__) console.warn("[api] Unauthorized listener threw:", e);
-          }
-        });
-      }
+    // Não fazer logout automático para erros de 2FA
+    const is2FAEndpoint = error.config?.url?.includes('/auth/verify-2fa') || error.config?.url?.includes('/auth/resend-2fa');
+    
+    if ((normalized.status === 401 || normalized.status === 403) && !is2FAEndpoint) {
+      // Notificar listeners para logout
+      unauthorizedListeners.forEach((cb) => {
+        try {
+          cb(normalized);
+        } catch (e) {
+          if (__DEV__) console.warn("[api] Unauthorized listener threw:", e);
+        }
+      });
     }
 
     return Promise.reject(normalized);
@@ -191,6 +184,16 @@ function getContextualErrorMessage(
         return "Código de verificação inválido.";
       case 410:
         return "Código de verificação expirado.";
+      default:
+        return defaultMessageForStatus(status);
+    }
+  }
+
+  if (url.includes('/auth/resend-2fa')) {
+    switch (status) {
+      case 401:
+      case 403:
+        return "Sessão expirada. Faça login novamente.";
       default:
         return defaultMessageForStatus(status);
     }

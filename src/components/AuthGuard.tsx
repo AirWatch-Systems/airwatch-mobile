@@ -8,17 +8,18 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, saveCurrentRoute } = useAuth();
   const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       // Store the current path to redirect back after login
-      if (pathname !== '/login' && pathname !== '/two-factor') {
-        router.replace('/login');
+      if (pathname !== '/login' && pathname !== '/two-factor' && pathname !== '/register') {
+        saveCurrentRoute(pathname);
       }
+      router.replace('/login');
     }
-  }, [loading, isAuthenticated, pathname]);
+  }, [loading, isAuthenticated, pathname, saveCurrentRoute]);
 
   if (loading) {
     return (

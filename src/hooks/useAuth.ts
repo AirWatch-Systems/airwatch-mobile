@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { router } from 'expo-router';
 import { AuthService } from '../services/auth';
 import { AuthState } from '../types';
 import { onUnauthorized } from '../services/api';
@@ -33,10 +34,12 @@ export function useAuth() {
       await authService.logout();
       const newState = authService.getAuthState();
       setAuthState(newState);
+      router.replace('/login');
       return newState;
     } catch {
       const fallbackState = { isAuthenticated: false, token: null, expiresAt: null };
       setAuthState(fallbackState);
+      router.replace('/login');
       return fallbackState;
     }
   }, [authService]);
@@ -49,18 +52,27 @@ export function useAuth() {
     }
   }, [authService]);
 
-  const isTokenExpired = useMemo(() => {
-    try {
-      return authService.isTokenExpired();
-    } catch {
-      return true;
-    }
+  const saveCurrentRoute = useCallback(async (route: string) => {
+    await authService.saveLastRoute(route);
+  }, [authService]);
+
+  const getLastRoute = useCallback(async () => {
+    return authService.getLastRoute();
+  }, [authService]);
+
+  const clearLastRoute = useCallback(async () => {
+    await authService.clearLastRoute();
   }, [authService]);
 
   useEffect(() => {
     initializeAuth();
 
-    const unsubscribe = onUnauthorized(() => {
+    const unsubscribe = onUnauthorized(async () => {
+      // Salvar rota atual antes do logout por token expirado
+      const currentPath = window?.location?.pathname || '/';
+      if (currentPath !== '/login' && currentPath !== '/register' && currentPath !== '/') {
+        await authService.saveLastRoute(currentPath);
+      }
       logout().catch();
     });
 
@@ -74,6 +86,8 @@ export function useAuth() {
     loading,
     logout,
     refreshAuthState,
-    isTokenExpired
+    saveCurrentRoute,
+    getLastRoute,
+    clearLastRoute
   };
 }

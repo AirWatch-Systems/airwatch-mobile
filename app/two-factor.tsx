@@ -15,9 +15,11 @@ import { SessionManager, TempSession } from '../src/services/sessionManager';
 import { showErrorAlert, showSuccessAlert } from '../src/utils/alert';
 
 export default function TwoFactorScreen() {
+  const TIMELEFT = 120; // 2 minutes in seconds
+
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [timeLeft, setTimeLeft] = useState(TIMELEFT);
   const [canResend, setCanResend] = useState(false);
   const [session, setSession] = useState<TempSession | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -35,8 +37,9 @@ export default function TwoFactorScreen() {
       }
       
       setSession(tempSession);
-      // Calcular tempo restante baseado na expiração da sessão
-      const remaining = Math.max(0, Math.floor((tempSession.expiresAt - Date.now()) / 1000));
+      // Calcular tempo restante baseado na expiração do código (2 minutos)
+      const codeExpiresAt = tempSession.codeGeneratedAt + (2 * 60 * 1000);
+      const remaining = Math.max(0, Math.floor((codeExpiresAt - Date.now()) / 1000));
       setTimeLeft(remaining);
       setSessionLoading(false);
     };
@@ -61,12 +64,13 @@ export default function TwoFactorScreen() {
   }, [sessionLoading, setCanResend]);
 
   useEffect(() => {
-    if (timeLeft === 0) {
+    if (timeLeft === 0 && !canResend) {
       showErrorAlert(
         'O código de verificação expirou. Clique em "Reenviar Código" para receber um novo.'
       );
+      setCode(''); // Limpar o código quando expirar
     }
-  }, [timeLeft]);
+  }, [timeLeft, canResend]);
 
   const handleVerify = async () => {
     if (!code.trim()) {
@@ -83,6 +87,8 @@ export default function TwoFactorScreen() {
     setLoading(true);
     try {
       const authService = AuthService.getInstance();
+      
+      // Verificar o 2FA
       await authService.verify2FA(session.sessionId, code.trim());
       
       // Limpar sessão temporária após sucesso
@@ -90,9 +96,12 @@ export default function TwoFactorScreen() {
       await sessionManager.clearTempSession();
       
       showSuccessAlert('Autenticação realizada com sucesso!');
-      router.replace('/(tabs)/about');
+      
+      // Redirecionar para index que gerencia a navegação
+      router.replace('/');
     } catch (error: any) {
       showErrorAlert(error.message || 'Código de verificação inválido');
+      setCode(''); // Limpar o código quando houver erro
     } finally {
       setLoading(false);
     }
@@ -101,17 +110,31 @@ export default function TwoFactorScreen() {
   const handleResendCode = async () => {
     if (!session) return;
     
+    setLoading(true);
     try {
-      // Reset timer and state
-      setTimeLeft(300);
+      console.log('Resending code for sessionId:', session.sessionId);
+      const authService = AuthService.getInstance();
+      await authService.resend2FACode(session.sessionId);
+      
+      // Atualizar timestamp do código na sessão
+      const sessionManager = SessionManager.getInstance();
+      await sessionManager.updateCodeTimestamp();
+      
+      setTimeLeft(TIMELEFT);
       setCanResend(false);
       setCode('');
       
-      // In a real app, you would call an API to resend the code
-      // For now, we'll just show a message
-      showSuccessAlert('Um novo código foi enviado. Verifique os logs da API.');
-    } catch {
-      showErrorAlert('Não foi possível reenviar o código');
+      showSuccessAlert('Um novo código foi enviado para seu email.');
+    } catch (error: any) {
+      console.error('Resend error:', error);
+      if (error.message?.includes('Sessão expirada')) {
+        showErrorAlert('Sessão expirada. Redirecionando para login...');
+        setTimeout(() => router.replace('/login'), 2000);
+      } else {
+        showErrorAlert(error.message || 'Não foi possível reenviar o código');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

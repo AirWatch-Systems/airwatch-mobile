@@ -26,7 +26,7 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace('/(tabs)/about');
+      router.replace('/(tabs)');
     }
   }, [authLoading, isAuthenticated]);
 

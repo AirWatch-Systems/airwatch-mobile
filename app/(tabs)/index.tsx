@@ -5,6 +5,7 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { PollutionPanel } from '../../src/components/PollutionPanel';
 import { pollutionService, PollutionData, HistoryPoint } from '../../src/services/pollutionService';
+import { showAlert } from '../../src/utils/alert';
 
 interface LocationCoords {
   latitude: number;
@@ -27,7 +28,7 @@ export default function HomeScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         if (Platform.OS === 'web') {
-          alert('Permissão de localização é necessária');
+          showAlert('Permissão negada', 'Permissão de localização é necessária');
         } else {
           Alert.alert('Permissão negada', 'Permissão de localização é necessária');
         }
@@ -41,7 +42,7 @@ export default function HomeScreen() {
       });
     } catch {
       if (Platform.OS === 'web') {
-        alert('Não foi possível obter a localização');
+        showAlert('Erro', 'Não foi possível obter a localização');
       } else {
         Alert.alert('Erro', 'Não foi possível obter a localização');
       }
@@ -63,7 +64,7 @@ export default function HomeScreen() {
       setShowPanel(true);
     } catch {
       if (Platform.OS === 'web') {
-        alert('Não foi possível carregar os dados de poluição');
+        showAlert('Erro', 'Não foi possível carregar os dados de poluição');
       } else {
         Alert.alert('Erro', 'Não foi possível carregar os dados de poluição');
       }

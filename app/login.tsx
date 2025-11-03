@@ -16,14 +16,14 @@ import { useAuth } from '../src/hooks/useAuth';
 import { showErrorAlert } from '../src/utils/alert';
 
 export default function LoginScreen() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, getLastRoute, clearLastRoute } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace('/(tabs)/about');
+      router.replace('/');
     }
   }, [authLoading, isAuthenticated]);
 
@@ -43,6 +43,9 @@ export default function LoginScreen() {
         // Armazenar sessão temporária de forma segura
         await sessionManager.storeTempSession(response.sessionId, email.trim());
         router.push('/two-factor');
+      } else {
+        // Login direto bem-sucedido, redirecionar para index que gerencia a navegação
+        router.replace('/');
       }
     } catch (error: any) {
       showErrorAlert(error.message || 'Erro ao fazer login');

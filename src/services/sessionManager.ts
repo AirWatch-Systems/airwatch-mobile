@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TEMP_SESSION_KEY = 'temp_2fa_session';
+const TEMP_SESSION_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 // Storage abstraction for web/mobile
 const storage = {
@@ -34,6 +35,7 @@ export interface TempSession {
   email: string;
   timestamp: number;
   expiresAt: number;
+  codeGeneratedAt: number;
 }
 
 export class SessionManager {
@@ -47,14 +49,24 @@ export class SessionManager {
   }
 
   async storeTempSession(sessionId: string, email: string): Promise<void> {
+    const now = Date.now();
     const session: TempSession = {
       sessionId,
       email,
-      timestamp: Date.now(),
-      expiresAt: Date.now() + (5 * 60 * 1000) // 5 minutos
+      timestamp: now,
+      expiresAt: now + TEMP_SESSION_TTL_MS,
+      codeGeneratedAt: now
     };
 
     await storage.setItem(TEMP_SESSION_KEY, JSON.stringify(session));
+  }
+
+  async updateCodeTimestamp(): Promise<void> {
+    const session = await this.getTempSession();
+    if (session) {
+      session.codeGeneratedAt = Date.now();
+      await storage.setItem(TEMP_SESSION_KEY, JSON.stringify(session));
+    }
   }
 
   async getTempSession(): Promise<TempSession | null> {

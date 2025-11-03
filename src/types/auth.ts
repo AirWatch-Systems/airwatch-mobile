@@ -29,6 +29,17 @@ export interface Verify2FaRequest {
 
 export interface Verify2FaResponse {
   token: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  token: string;
+  refreshToken: string;
   expiresIn: number;
 }
 
