@@ -6,6 +6,7 @@ import { feedbackService } from '../../src/services/feedbackService';
 import { FeedbackItemDto } from '../../src/types/feedback';
 import { FeedbackFilters } from '../../src/components/FeedbackFilters';
 import { CreateFeedbackModal } from '../../src/components/CreateFeedbackModal';
+import { geocodingService } from '../../src/services/geocodingService';
 
 interface LocationFilter {
   type: 'all' | 'current' | 'region';
@@ -67,7 +68,25 @@ export default function FeedbacksScreen() {
         );
       }
 
-      setFeedbacks(feedbackData);
+      // Adicionar endereços aos feedbacks
+      const feedbacksWithAddresses = await Promise.all(
+        feedbackData.map(async (feedback) => {
+          if (feedback.latitude && feedback.longitude) {
+            try {
+              const addressInfo = await geocodingService.reverseGeocode(
+                feedback.latitude,
+                feedback.longitude
+              );
+              return { ...feedback, address: addressInfo.formattedAddress };
+            } catch (error) {
+              return { ...feedback, address: `${feedback.latitude.toFixed(4)}, ${feedback.longitude.toFixed(4)}` };
+            }
+          }
+          return feedback;
+        })
+      );
+
+      setFeedbacks(feedbacksWithAddresses);
     } catch {
       Alert.alert('Erro', 'Não foi possível carregar os feedbacks');
     } finally {
@@ -110,7 +129,7 @@ export default function FeedbacksScreen() {
       <View style={styles.locationInfo}>
         <Ionicons name="location-outline" size={16} color="#666" />
         <Text style={styles.coordinatesText}>
-          {item.latitude?.toFixed(4)}, {item.longitude?.toFixed(4)}
+          {item.address || `${item.latitude?.toFixed(4)}, ${item.longitude?.toFixed(4)}`}
         </Text>
       </View>
     </View>

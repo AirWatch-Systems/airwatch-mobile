@@ -20,6 +20,7 @@ export interface FeedbackItemDto {
   rating: number;
   comment?: string | null;
   createdAt: string;
+  address?: string;
 }
 
 export interface FeedbackListResponse {

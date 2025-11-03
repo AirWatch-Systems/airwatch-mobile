@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { feedbackService } from '../services/feedbackService';
+import { geocodingService } from '../services/geocodingService';
 import { RatingLabel, ratingLabelToValue } from '../types/feedback';
+import { LocationMap } from './LocationMap';
 
 interface Props {
   visible: boolean;
@@ -17,6 +19,7 @@ export function CreateFeedbackModal({ visible, onClose, currentLocation, onSucce
   const [selectedRating, setSelectedRating] = useState<RatingLabel>('Normal');
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const [address, setAddress] = useState<string>('');
 
   const handleSubmit = async () => {
     if (!currentLocation) {
@@ -44,6 +47,13 @@ export function CreateFeedbackModal({ visible, onClose, currentLocation, onSucce
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (currentLocation && visible) {
+      geocodingService.reverseGeocode(currentLocation.lat, currentLocation.lon)
+        .then(addressInfo => setAddress(addressInfo.formattedAddress));
+    }
+  }, [currentLocation, visible]);
 
   const getRatingColor = (rating: RatingLabel) => {
     const value = ratingLabelToValue(rating);
@@ -94,14 +104,24 @@ export function CreateFeedbackModal({ visible, onClose, currentLocation, onSucce
             multiline
             numberOfLines={4}
             maxLength={500}
+            blurOnSubmit={true}
+            returnKeyType="done"
           />
 
           {currentLocation && (
-            <View style={styles.locationInfo}>
-              <Ionicons name="location" size={16} color="#007AFF" />
-              <Text style={styles.locationText}>
-                {currentLocation.lat.toFixed(4)}, {currentLocation.lon.toFixed(4)}
-              </Text>
+            <View style={styles.locationSection}>
+              <Text style={styles.sectionTitle}>Localização</Text>
+              <LocationMap
+                latitude={currentLocation.lat}
+                longitude={currentLocation.lon}
+                height={120}
+              />
+              <View style={styles.addressInfo}>
+                <Ionicons name="location" size={16} color="#007AFF" />
+                <Text style={styles.addressText}>
+                  {address || 'Carregando endereço...'}
+                </Text>
+              </View>
             </View>
           )}
         </View>
@@ -176,17 +196,22 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 16,
   },
-  locationInfo: {
+  locationSection: {
+    marginTop: 8,
+  },
+  addressInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    marginTop: 8,
+    padding: 8,
     backgroundColor: '#f0f8ff',
     borderRadius: 8,
   },
-  locationText: {
+  addressText: {
     marginLeft: 8,
     fontSize: 14,
     color: '#007AFF',
+    flex: 1,
   },
   footer: {
     padding: 16,
