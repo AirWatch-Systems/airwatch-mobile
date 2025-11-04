@@ -63,7 +63,7 @@ export default function FeedbacksScreen() {
         feedbackData = await feedbackService.getFeedbacksNearLocation(
           filter.coordinates.lat,
           filter.coordinates.lon,
-          10,
+          50,
           168
         );
       }
@@ -78,7 +78,7 @@ export default function FeedbacksScreen() {
                 feedback.longitude
               );
               return { ...feedback, address: addressInfo.formattedAddress };
-            } catch (error) {
+            } catch {
               return { ...feedback, address: `${feedback.latitude.toFixed(4)}, ${feedback.longitude.toFixed(4)}` };
             }
           }
@@ -117,9 +117,12 @@ export default function FeedbacksScreen() {
         <View style={[styles.ratingBadge, { backgroundColor: getRatingColor(item.rating) }]}>
           <Text style={styles.ratingText}>{getRatingText(item.rating)}</Text>
         </View>
-        <Text style={styles.dateText}>
-          {new Date(item.createdAt).toLocaleDateString('pt-BR')}
-        </Text>
+        <View style={styles.headerRight}>
+          <Text style={styles.userText}>Por: {item.userName || 'Usuário'}</Text>
+          <Text style={styles.dateText}>
+            {new Date(item.createdAt).toLocaleDateString('pt-BR')}
+          </Text>
+        </View>
       </View>
       
       {item.comment && (
@@ -214,6 +217,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 12,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+  },
+  userText: {
+    color: '#007AFF',
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 2,
   },
   dateText: {
     color: '#666',

@@ -4,7 +4,7 @@ import MapView, { Marker } from '../../src/components/MapView';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { PollutionPanel } from '../../src/components/PollutionPanel';
-import { pollutionService, PollutionData, HistoryPoint } from '../../src/services/pollutionService';
+import { pollutionService, PollutionData } from '../../src/services/pollutionService';
 import { showAlert } from '../../src/utils/alert';
 
 interface LocationCoords {
@@ -15,7 +15,7 @@ interface LocationCoords {
 export default function HomeScreen() {
   const [location, setLocation] = useState<LocationCoords | null>(null);
   const [pollutionData, setPollutionData] = useState<PollutionData | null>(null);
-  const [historyData, setHistoryData] = useState<HistoryPoint[]>([]);
+
   const [showPanel, setShowPanel] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -54,13 +54,8 @@ export default function HomeScreen() {
 
     setLoading(true);
     try {
-      const [current, history] = await Promise.all([
-        pollutionService.getCurrentPollution(location.latitude, location.longitude),
-        pollutionService.getPollutionHistory(location.latitude, location.longitude, 24)
-      ]);
-
+      const current = await pollutionService.getCurrentPollution(location.latitude, location.longitude);
       setPollutionData(current);
-      setHistoryData(history.points);
       setShowPanel(true);
     } catch {
       if (Platform.OS === 'web') {
@@ -124,7 +119,7 @@ export default function HomeScreen() {
             o3: pollutionData.pollutants?.o3 || 0,
             lastUpdated: pollutionData.lastUpdated || new Date().toISOString(),
           } : null}
-          history={historyData}
+
           onClose={() => setShowPanel(false)}
         />
       )}

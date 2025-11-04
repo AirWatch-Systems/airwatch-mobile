@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { feedbackService } from '../services/feedbackService';
 import { geocodingService } from '../services/geocodingService';
 import { RatingLabel, ratingLabelToValue } from '../types/feedback';
 import { LocationMap } from './LocationMap';
+import { showAlert } from '../utils/alert';
 
 interface Props {
   visible: boolean;
@@ -23,7 +24,7 @@ export function CreateFeedbackModal({ visible, onClose, currentLocation, onSucce
 
   const handleSubmit = async () => {
     if (!currentLocation) {
-      Alert.alert('Erro', 'Localização não disponível');
+      showAlert('Erro', 'Localização não disponível');
       return;
     }
 
@@ -36,13 +37,13 @@ export function CreateFeedbackModal({ visible, onClose, currentLocation, onSucce
         comment: comment.trim() || undefined
       });
 
-      Alert.alert('Sucesso', 'Feedback enviado com sucesso!');
+      showAlert('Sucesso', 'Feedback enviado com sucesso!');
       setComment('');
       setSelectedRating('Normal');
       onSuccess();
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Erro ao enviar feedback';
-      Alert.alert('Erro', message);
+      console.log(error);
+      showAlert('Erro', error.message || 'Erro ao enviar feedback');
     } finally {
       setLoading(false);
     }

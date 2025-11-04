@@ -32,14 +32,7 @@ export const feedbackService = {
   },
 
   async createFeedback(feedback: FeedbackCreateRequest) {
-    try {
-      const response = await api.post('api/feedbacks', feedback);
-      return response.data;
-    } catch (error: any) {
-      if (error.response?.status === 429) {
-        throw new Error(error.response.data.message || 'Limite de tempo atingido');
-      }
-      throw error;
-    }
+    const response = await api.post('api/feedbacks', feedback);
+    return response.data;
   }
 };

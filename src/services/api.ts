@@ -112,6 +112,8 @@ export function toApiError(err: unknown): ApiError {
     const data = ae.response?.data;
 
     const serverMessage =
+      (typeof data === "object" && data && "Message" in data && typeof data.Message === "string" && data.Message) ||
+      (typeof data === "object" && data && "message" in data && typeof data.message === "string" && data.message) ||
       (typeof data === "object" && data && "error" in data && typeof data.error === "string" && data.error) ||
       (typeof data === "string" && data) ||
       undefined;
@@ -129,7 +131,7 @@ export function toApiError(err: unknown): ApiError {
     // Network error (no response)
     const isNetworkError = !ae.response;
 
-    const message = getContextualErrorMessage(url, status, serverMessage, timedOut, isNetworkError);
+    const message = serverMessage || getContextualErrorMessage(url, status, serverMessage, timedOut, isNetworkError);
 
     const apiError: ApiError = new Error(message);
     apiError.status = status;
@@ -167,7 +169,6 @@ function getContextualErrorMessage(
     switch (status) {
       case 401:
       case 403:
-        return "Email ou senha inválidos.";
       case 422:
         return "Email ou senha inválidos.";
       default:
@@ -178,10 +179,8 @@ function getContextualErrorMessage(
   if (url.includes('/auth/verify-2fa')) {
     switch (status) {
       case 401:
-      case 403:
-        return "Código de verificação inválido.";
-      case 422:
-        return "Código de verificação inválido.";
+      case 403:        
+      case 422:      
       case 410:
         return "Código de verificação expirado.";
       default:
@@ -198,6 +197,8 @@ function getContextualErrorMessage(
         return defaultMessageForStatus(status);
     }
   }
+
+
 
   return defaultMessageForStatus(status);
 }

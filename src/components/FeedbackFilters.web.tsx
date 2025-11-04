@@ -156,12 +156,11 @@ const styles = StyleSheet.create({
   select: {
     height: 50,
     backgroundColor: '#f8f9fa',
-    border: '1px solid #ddd',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     width: '100%',
-  },
+  } as any,
   selectedRegion: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 
 interface LocationFilter {
   type: 'all' | 'current' | 'region';
@@ -56,25 +55,36 @@ export function FeedbackFilters({ filter, onFilterChange, hasCurrentLocation }: 
     <View style={styles.container}>
       <Text style={styles.label}>Filtrar feedbacks por:</Text>
       
-      <Picker
-        selectedValue={filter.type}
-        style={styles.picker}
-        onValueChange={(value) => {
-          if (value === 'all') {
-            onFilterChange({ type: 'all' });
-          } else if (value === 'current') {
-            onFilterChange({ type: 'current' });
-          } else if (value === 'region') {
-            setShowRegionModal(true);
-          }
-        }}
-      >
-        <Picker.Item label="Todos os meus feedbacks" value="all" />
+      <View style={styles.filterButtons}>
+        <TouchableOpacity
+          style={[styles.filterButton, filter.type === 'all' && styles.filterButtonActive]}
+          onPress={() => onFilterChange({ type: 'all' })}
+        >
+          <Text style={[styles.filterButtonText, filter.type === 'all' && styles.filterButtonTextActive]}>
+            Meus
+          </Text>
+        </TouchableOpacity>
+        
         {hasCurrentLocation && (
-          <Picker.Item label="Localização atual (5km)" value="current" />
+          <TouchableOpacity
+            style={[styles.filterButton, filter.type === 'current' && styles.filterButtonActive]}
+            onPress={() => onFilterChange({ type: 'current' })}
+          >
+            <Text style={[styles.filterButtonText, filter.type === 'current' && styles.filterButtonTextActive]}>
+              Atual (5km)
+            </Text>
+          </TouchableOpacity>
         )}
-        <Picker.Item label="Região específica" value="region" />
-      </Picker>
+        
+        <TouchableOpacity
+          style={[styles.filterButton, filter.type === 'region' && styles.filterButtonActive]}
+          onPress={() => setShowRegionModal(true)}
+        >
+          <Text style={[styles.filterButtonText, filter.type === 'region' && styles.filterButtonTextActive]}>
+            Região
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {filter.type === 'region' && filter.regionName && (
         <View style={styles.selectedRegion}>
@@ -115,17 +125,17 @@ export function FeedbackFilters({ filter, onFilterChange, hasCurrentLocation }: 
           <View style={styles.customLocationContainer}>
             <TextInput
               style={styles.coordinateInput}
-              placeholder="Latitude"
+              placeholder="Latitude (ex: -23.5505)"
               value={customLat}
               onChangeText={setCustomLat}
-              keyboardType="numeric"
+              keyboardType="numbers-and-punctuation"
             />
             <TextInput
               style={styles.coordinateInput}
-              placeholder="Longitude"
+              placeholder="Longitude (ex: -46.6333)"
               value={customLon}
               onChangeText={setCustomLon}
-              keyboardType="numeric"
+              keyboardType="numbers-and-punctuation"
             />
             <TouchableOpacity
               style={styles.customLocationButton}
@@ -153,9 +163,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#333',
   },
-  picker: {
-    height: 50,
+  filterButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  filterButtonTextActive: {
+    color: '#fff',
   },
   selectedRegion: {
     flexDirection: 'row',

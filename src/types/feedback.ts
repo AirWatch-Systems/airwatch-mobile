@@ -15,6 +15,7 @@ export interface FeedbackItemDto {
   id: string;
   user?: UserMiniDto;
   userId?: string;
+  userName?: string;
   latitude?: number;
   longitude?: number;
   rating: number;

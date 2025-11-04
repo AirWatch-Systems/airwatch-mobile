@@ -10,12 +10,20 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import type {
-  PollutantsDto,
-  PollutionCurrentResponse,
-} from "../hooks/types";
+// Tipos locais
+interface PollutantsDto {
+  pm25: number;
+  pm10: number;
+  co: number;
+  no2: number;
+  so2: number;
+  o3: number;
+}
 
-export { PollutionLineChart } from "./PollutionLineChart";
+interface PollutionCurrentResponse {
+  aqi: number;
+  pollutants: PollutantsDto;
+}
 
 // -------------------------------
 // ErrorToast

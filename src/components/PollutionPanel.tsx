@@ -13,19 +13,12 @@ interface PollutionData {
   lastUpdated: string;
 }
 
-interface HistoryPoint {
-  timestamp: string;
-  aqi: number;
-  pm25: number;
-}
-
 interface PollutionPanelProps {
   data: PollutionData | null;
-  history: HistoryPoint[];
   onClose: () => void;
 }
 
-export function PollutionPanel({ data, history, onClose }: PollutionPanelProps) {
+export function PollutionPanel({ data, onClose }: PollutionPanelProps) {
   if (!data) return null;
 
   const getAQIColor = (aqi: number) => {
@@ -103,29 +96,7 @@ export function PollutionPanel({ data, history, onClose }: PollutionPanelProps) 
             </View>
           </View>
 
-          {history.length > 0 && (
-            <View style={styles.chartContainer}>
-              <Text style={styles.chartTitle}>Variação AQI (24h)</Text>
-              <View style={styles.simpleChart}>
-                {history.slice(-12).map((point, index) => (
-                  <View key={index} style={styles.chartBar}>
-                    <View 
-                      style={[
-                        styles.chartBarFill, 
-                        { 
-                          height: `${Math.min(((point.aqi || 0) / 300) * 100, 100)}%`,
-                          backgroundColor: getAQIColor(point.aqi || 0)
-                        }
-                      ]} 
-                    />
-                    <Text style={styles.chartLabel}>
-                      {new Date(point.timestamp).getHours()}h
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+
 
           <Text style={styles.lastUpdated}>
             Última atualização: {new Date(data.lastUpdated).toLocaleString('pt-BR')}
@@ -207,38 +178,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  chartContainer: {
-    marginBottom: 20,
-  },
-  chartTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
-  simpleChart: {
-    flexDirection: 'row',
-    height: 120,
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-  },
-  chartBar: {
-    flex: 1,
-    height: 100,
-    marginHorizontal: 2,
-    alignItems: 'center',
-  },
-  chartBarFill: {
-    width: '100%',
-    borderRadius: 2,
-    minHeight: 5,
-  },
-  chartLabel: {
-    fontSize: 10,
-    color: '#666',
-    marginTop: 5,
-  },
+
   lastUpdated: {
     fontSize: 12,
     color: '#666',
