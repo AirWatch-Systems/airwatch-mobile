@@ -162,11 +162,12 @@ function getContextualErrorMessage(
   if (serverMessage) return serverMessage;
 
   if (timedOut) return "Tempo de requisição esgotado.";
-  if (isNetworkError) return "Verifique sua conexão com a internet.";
+  if (isNetworkError) return "Conexão de rede indisponível.";
 
   // Mensagens específicas por endpoint
   if (url.includes('/auth/login')) {
     switch (status) {
+      case 400:
       case 401:
       case 403:
       case 422:

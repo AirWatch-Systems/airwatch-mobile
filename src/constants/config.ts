@@ -6,7 +6,6 @@
  *
  * Required variables:
  * - EXPO_PUBLIC_API_URL
- * - EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
  *
  * Optional variables:
  * - EXPO_PUBLIC_REQUEST_TIMEOUT_MS (default: 15000)
@@ -20,7 +19,6 @@ type Milliseconds = number;
 
 export interface AppConfig {
   apiUrl: string; // Base URL of the backend API (e.g., https://localhost:5000)
-  googleMapsApiKey: string; // Public Google Maps key for mobile map SDKs
   requestTimeoutMs: Milliseconds; // Default HTTP request timeout
   env: "development" | "staging" | "production" | "test" | string; // Execution environment
 }
@@ -75,8 +73,6 @@ function parseNumber(value: string, fallback: number, min = 0, max = Number.MAX_
 const rawApiUrl = requirePublicEnv("EXPO_PUBLIC_API_URL");
 const apiUrl = normalizeBaseUrl(rawApiUrl);
 
-const googleMapsApiKey = requirePublicEnv("EXPO_PUBLIC_GOOGLE_MAPS_API_KEY");
-
 const requestTimeoutMs = parseNumber(
   readPublicEnv("EXPO_PUBLIC_REQUEST_TIMEOUT_MS", "15000"),
   15000,
@@ -91,7 +87,6 @@ const env = readPublicEnv("EXPO_PUBLIC_ENV", (process.env.NODE_ENV as string) ||
  */
 export const CONFIG: AppConfig = {
   apiUrl,
-  googleMapsApiKey,
   requestTimeoutMs,
   env,
 };
@@ -102,7 +97,6 @@ if (__DEV__) {
     apiUrl: CONFIG.apiUrl,
     requestTimeoutMs: CONFIG.requestTimeoutMs,
     env: CONFIG.env,
-    googleMapsApiKeyPresent: Boolean(CONFIG.googleMapsApiKey && CONFIG.googleMapsApiKey.length > 0),
   });
 }
 
