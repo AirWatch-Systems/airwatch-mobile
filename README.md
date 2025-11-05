@@ -1,73 +1,135 @@
-# Welcome to your Expo app 👋
+# AirWatch Mobile App 📱
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App móvel para monitoramento da qualidade do ar em tempo real, desenvolvido com React Native e Expo.
 
-## Get started
+## 📋 Pré-requisitos
 
-1. Install dependencies
+### 1. Node.js e npm
+- **Node.js**: v22.16.0 ou superior
+- **npm**: v10.9.2 ou superior
+- **Download**: [https://nodejs.org](https://nodejs.org)
 
-   ```bash
-   npm install
-   ```
+### 2. NVM (Opcional, mas recomendado)
+- **Versão**: v1.2.2 ou superior
+- **Windows**: [https://github.com/coreybutler/nvm-windows](https://github.com/coreybutler/nvm-windows)
+- **macOS/Linux**: [https://github.com/nvm-sh/nvm](https://github.com/nvm-sh/nvm)
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### 3. Expo CLI
 ```bash
-npm run reset-project
+npm install -g @expo/cli
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 4. Expo Go App (RECOMENDADO)
+- **Android**: [Google Play Store](https://play.google.com/store/apps/details?id=host.exp.exponent)
+- **iOS**: [App Store](https://apps.apple.com/app/expo-go/id982107779)
 
-## Learn more
+## 🚀 Configuração do Projeto
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-
-## Join the community
-
-
-
-Join our community of developers creating universal apps.
-
-
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-
-## Environment configuration (AirWatch)
-
-Configure the mobile app to talk to the backend by defining Expo public environment variables. Create a file named `.env` in the project root (same folder as `package.json`) with:
-
+### Passo 1: Verificar versões
 ```bash
-EXPO_PUBLIC_API_URL=https://localhost:5001
-EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_KEY
-EXPO_PUBLIC_REQUEST_TIMEOUT_MS=15000
-EXPO_PUBLIC_ENV=development
+node --version  # Deve mostrar v22.16.0 ou superior
+npm --version   # Deve mostrar v10.9.2 ou superior
 ```
 
-Notes:
-- EXPO_PUBLIC_API_URL should point to your running backend (Kestrel/IIS). Use HTTPS if available.
-- After editing `.env`, restart the Expo dev server: stop it and run `npx expo start` again.
-- On the first run, trust the dev HTTPS certificate: `dotnet dev-certs https --trust` on the backend machine.
+### Passo 2: Clonar e instalar dependências
+```bash
+mkdir airwatch-systems/ # Se não criou ainda
+cd airwatch-systems
+git clone https://github.com/AirWatch-Systems/airwatch-mobile.git
+cd airwatch-mobile
+npm install
+```
 
+### Passo 3: Configurar variáveis de ambiente
+Crie um arquivo `.env` na raiz do projeto:
+```bash
+EXPO_PUBLIC_API_URL=http://0.0.0.0:5000
+EXPO_PUBLIC_REQUEST_TIMEOUT_MS=15000 (opcional)
+EXPO_PUBLIC_ENV=development (opcional)
+```
+
+### Passo 4: Iniciar o servidor de desenvolvimento
+```bash
+npm start
+```
+
+### Passo 5: Executar no celular (RECOMENDADO)
+1. **Baixe o Expo Go** na loja de aplicativos do seu celular
+2. **Execute** `npm start` no terminal
+3. **Escaneie o QR Code** que aparece no terminal com:
+   - **Android**: Câmera do celular ou app Expo Go
+   - **iOS**: Câmera do celular
+4. **Aguarde** o app carregar no seu celular
+
+## 🛠️ Comandos Disponíveis
+
+```bash
+npm start          # Inicia o servidor de desenvolvimento
+npm run android    # Executa no emulador Android (não recomendado)
+npm run ios        # Executa no simulador iOS (não recomendado)
+npm run web        # Executa no navegador
+npm run lint       # Executa o linter
+```
+
+## 📱 Por que usar o celular?
+
+**✅ RECOMENDADO: Celular físico com Expo Go**
+
+- Melhor performance
+- Acesso real aos sensores (GPS, câmera)
+- Experiência mais próxima do usuário final
+- Não requer configuração de emuladores
+
+**❌ NÃO RECOMENDADO: Emuladores**
+
+- Performance inferior
+- Problemas com GPS e sensores
+- Configuração complexa
+- Consome mais recursos do computador
+
+## 🔧 Solução de Problemas
+
+### Erro de conexão com a API
+- Verifique se o backend está rodando
+- Confirme a URL no arquivo `.env`
+- Para HTTPS: execute `dotnet dev-certs https --trust`
+
+### QR Code não aparece
+```bash
+npx expo start --tunnel
+```
+
+### App não carrega no celular
+- Certifique-se que celular e computador estão na mesma rede Wi-Fi
+- Tente usar o modo tunnel: `npx expo start --tunnel`
+
+## 📚 Tecnologias Utilizadas
+
+- **React Native**: 0.81.5
+- **Expo**: ~54.0.20
+- **TypeScript**: ~5.9.2
+- **React**: 19.1.0
+- **Expo Router**: ~6.0.13
+- **React Native Maps**: 1.20.1
+- **Axios**: ^1.12.2
+
+## 🌐 Links Úteis
+
+- [Documentação do Expo](https://docs.expo.dev/)
+- [React Native Maps](https://github.com/react-native-maps/react-native-maps)
+- [Expo Router](https://docs.expo.dev/router/introduction/)
+- [TypeScript](https://www.typescriptlang.org/)
+
+## 🎯 Funcionalidades
+
+- **Autenticação**: Login com 2FA
+- **Localização**: GPS em tempo real
+- **Qualidade do Ar**: Índices de poluição atuais
+- **Feedbacks**: Sistema de avaliação da qualidade do ar
+- **Mapas**: Visualização interativa
+- **Pesquisa**: Busca por localizações
+- **Perfil**: Gerenciamento de conta
+
+## 📄 Licença
+
+MIT License - veja o arquivo [LICENSE](LICENSE) para detalhes.
